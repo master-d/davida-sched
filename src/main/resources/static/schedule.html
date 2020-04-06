@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="css/sched.css"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+        <!-- Include Bootstrap Datepicker -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+
+        <script type="text/javascript">
+        const emps = {
+            Michelle : { schedule: [] },
+            Katie: { schedule: [] },
+            Jill: { schedule: [] },
+            Sherry: {schedule: [] }, 
+            Joetta: { schedule: [], maxCall: 3 },
+            David: { schedule: [], manual: true },
+            Anna: { schedule: [], maxCall: 0 }
+        }
+        // stores dates in month
+        var dom = [];
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ];
+        const dow = ['Su','M','T','W','R','F','Sa'];
+        const wpd = [ 1,  4,  3,  4,  3,  4,  3 ];
+
+        function getDaysInMonth(date) {
+            const month = date.getMonth();
+            var days = [];
+            while (date.getMonth() === month) {
+                days.push(new Date(date));
+                date.setDate(date.getDate() + 1);
+            }
+            return days;
+        }
+        function changeTitle(title) {
+            $("#pg-title").text(title);
+        }
+        function createTableHeader(date) {
+            $("#tbl-sched thead,#tbl-sched tbody").html("");
+
+            var tr1 = $("<tr><td></td></tr>");
+            var tr2 = $("<tr><td><b>CALL</b></td></tr>");
+            for (const idx in dom) {
+                const day = dom[idx];
+                tr1.append($("<td>" + day.getDate() + "</td>"));
+                tr2.append($("<td>" + dow[day.getDay()] + "</td>"));
+            }
+            $("#tbl-sched thead").append(tr1);
+            $("#tbl-sched thead").append(tr2);
+        }
+        function createEmpTr(emp) {
+            var tbody = $("#tbl-sched tbody");
+            var tr = $("<tr id='tr-" + emp + "'><td>" + emp + "</td></tr>");
+            for (const idx in dom) {
+                const day = dom[idx];
+                var td = $("<td>");
+                var inp = $("<input type='text' size='1' maxlength='1' data-idx='" + idx + "' data-emp='" + emp + "'/>");
+                inp.keydown(schedKeyDown);
+                inp.change(schedChange);
+                inp.val(emps[emp].schedule[idx]);
+                tr.append(td.append(inp));
+            }
+            tbody.append(tr);
+        }
+        function addEmployeeTrs() {
+            for (var emp in emps) {
+                createEmpTr(emp);
+            }
+        }
+        function clearSchedules() {
+            for (var emp in emps) {
+                emps[emp].schedule = [];
+            }
+        } 
+        function generateSchedules() {
+            clearSchedules();
+            var workers = 0;
+            for (var day=0; day < dom.length; day++) {
+                const maxWorkers = wpd[dom[day].getDay()];
+                for (var emp in emps) {
+                    if (workers < maxWorkers && Math.round(Math.random()) && !emps[emp].schedule[day]) {
+                        emps[emp].schedule[day] = 'w';
+                        workers++;
+                    } else if (!emps[emp].schedule[day]) {
+                        emps[emp].schedule[day] = null;
+                    }
+                }
+                if (workers < maxWorkers)
+                    day--;
+                else {
+                    console.log("Added " + workers + " for " + dow[dom[day].getDay()] + " " + dom[day].getDate());
+                    workers = 0;
+                }
+            }
+        }
+        function fixSchedule(num, day, chgemp) {
+            while (num != 0) {
+                for (var emp in emps) {
+                    const newValue = num > 0 ? 'w' : null;
+                    const schedValue = emps[emp].schedule[day];
+                    if (Math.round(Math.random()) && num != 0 && emp != chgemp && schedValue != newValue && schedValue !== 'W' ) {
+                        emps[emp].schedule[day] = newValue;
+                        num > 0 ? num-- : num++;
+                        $("#tr-" + emp).find("input").eq(+day).val(newValue);
+                    }
+                }
+            }
+        }
+        function getNumberOfWorkersForDay(day) {
+            var count = 0;
+            for (var emp in emps) {
+                if (emps[emp].schedule[day])
+                    count++;
+            }
+            return count;
+        }
+        function schedChange(e) {
+            const idx = e.target.dataset.idx;
+            const emp = e.target.dataset.emp;
+            emps[emp].schedule[idx] = e.target.value ? e.target.value : null;
+
+            const maxWorkers = wpd[dom[idx].getDay()];
+            const workers = getNumberOfWorkersForDay(idx);
+            if (e.target.value !== 'W')
+                fixSchedule(maxWorkers - workers, idx, emp);
+
+        }
+        function schedKeyDown(e) {
+            switch(e.keyCode) {
+                case 38:
+                e.preventDefault();
+                $(e.target).parents("tr").prev().find(":input").eq(e.target.dataset.idx).focus().select();
+                break;
+                case 40:
+                e.preventDefault();
+                $(e.target).parents("tr").next().find(":input").eq(e.target.dataset.idx).focus().select();
+                break;
+                case 37:
+                e.preventDefault();
+                $(e.target).parents("td").prev().find(":input").focus().select();
+                break;
+                case 39:
+                e.preventDefault();
+                $(e.target).parents("td").next().find(":input").focus().select();
+                break;
+                default:
+            }
+        }
+        </script>
+    </head>
+    <body>
+        <h1 id="pg-title" class="tcenter">SCHEDULE ACUTES</h1>
+        <input id="sched-month" type="text" placeholder="Select Month" size="7" class="form-control form-control-lg"/>
+        <div>
+            <table id="tbl-sched">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <!--
+        <button id="btn-gen-schedule" type="button" class="btn btn-primary d-none">Generate Schedule</button>
+-->
+        <script type="text/javascript">
+            $('#sched-month').datepicker({
+                format: "mm/yyyy",
+                startView: 1,
+                minViewMode: 1,
+                todayBtn: "linked",
+                autoclose: true
+            }).on('changeDate', function(e) {
+                console.log(e.date);
+                $("#btn-gen-schedule").removeClass('d-none');
+                changeTitle("SCHEDULE ACUTES: " + months[e.date.getMonth()] + " " + e.date.getFullYear());
+                dom = getDaysInMonth(e.date);
+
+                createTableHeader(e.date);
+                generateSchedules();
+                addEmployeeTrs();
+            });
+        </script>
+    </body>
+</html>
